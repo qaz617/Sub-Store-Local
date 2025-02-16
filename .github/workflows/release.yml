@@ -41,7 +41,7 @@ jobs:
       - name: Bundle
         run: |
           cd Sub-Store/backend
-          pnpm run bundle
+          pnpm bundle:esbuild
       - name:  Package Release
         run: |
           pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node16 --out-path  ./sub-store-linux
