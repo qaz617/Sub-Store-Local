@@ -1,236 +1,120 @@
 name: build
+
 on:
-    workflow_dispatch:
-    schedule:
-      # 代表国际标准时间0点0分，北京时间需要+8小时，代表北京时间上午8点运行
-      - cron: '0 0 * * *'
+  workflow_dispatch:
+  schedule:
+    # 代表国际标准时间0点0分，北京时间需要+8小时，代表北京时间上午8点运行
+    - cron: '0 0 * * *'
+
 permissions:
   contents: write
+
 jobs:
   linux_build:
     name: Linux Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v4
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
-         python-version: '3.10'
-      - uses: actions/setup-node@v4
+          repository: sub-store-org/Sub-Store
+          path: Sub-Store
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Checkout
-        run: |
-          sudo apt install git wget -y
-          git clone https://github.com/sub-store-org/Sub-Store.git
-          sed -i 's#https://sub-store.vercel.app/#http://0.0.0.0:3000#g' 'Sub-Store/backend/src/restful/miscs.js'
-      - id: tag
-        name: Generate release tag
-        run: |
-          cd Sub-Store/backend
-          SUBSTORE_RELEASE=`node --eval="process.stdout.write(require('./package.json').version)"`
-          echo "release_tag=$SUBSTORE_RELEASE" >> $GITHUB_OUTPUT
-      - name: Install dependencies
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install global dependencies
         run: |
           npm install -g pnpm
           npm install -g pkg
-          cd Sub-Store/backend && pnpm i
-      - name: Build
+
+      - name: Install backend dependencies
         run: |
           cd Sub-Store/backend
-          dir
+          pnpm i
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          cd Sub-Store/backend
+          SUBSTORE_RELEASE=$(node -e "console.log(require('./package.json').version)")
+          echo "release_tag=$SUBSTORE_RELEASE" >> $GITHUB_OUTPUT
+
+      - name: Build backend
+        run: |
+          cd Sub-Store/backend
           pnpm run build
-      - name: Bundle
+
+      - name: Bundle backend
         run: |
           cd Sub-Store/backend
           pnpm bundle:esbuild
-      - name:  Package Release
-        run: |
-          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node16 --out-path  ./sub-store-linux
 
-      - name: Package Release
+      - name: Package backend for Linux
+        run: |
+          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node16 --out-path ./sub-store-linux
+
+      - name: Compress backend package
         run: tar czf sub-store-linux.tar.gz ./sub-store-linux
+
       - name: Draft Release
         uses: softprops/action-gh-release@v1
         with:
-            tag_name: ${{ steps.tag.outputs.release_tag }}
-            files: sub-store-linux.tar.gz
-            draft: false
-     
-          
-#  macos_build:
-#    name: macOS Build
-#    runs-on: macos-latest
-#    steps:
-#      - name: Set Tools
-#        run: |
-#            brew install openssl@3
-#            ls /usr/local/opt/openssl@3
-#            echo 'export PATH="/usr/local/opt/openssl@3/bin:$PATH"' >> /Users/runner/.bash_profile
-#            echo 'export LDFLAGS="-L/usr/local/opt/openssl@3/lib $LDFLAGS"'  >> /Users/runner/.bash_profile
-#            echo 'export CPPFLAGS="-I/usr/local/opt/openssl@3/include CPPFLAGS"' >> /Users/runner/.bash_profile
-#      - name: Checkout
-#        run: |
-#          brew install git
-#          git clone https://github.com/sub-store-org/Sub-Store.git
-#          sed -i '' -e 's#https://sub-store.vercel.app/#http://0.0.0.0:3000#g' 'Sub-Store/backend/src/restful/miscs.js'
-#      - id: tag
-#        name: Generate release tag
-#        run: |
-#          cd Sub-Store/backend
-#          SUBSTORE_RELEASE=`node --eval="process.stdout.write(require('./package.json').version)"`
-#          echo "release_tag=$SUBSTORE_RELEASE" >> $GITHUB_OUTPUT
-#      - name: Set up Node.js
-#        run: |
-#            brew install node@16
-#            echo 'export PATH="/usr/local/opt/node@16/bin:$PATH"' >> /Users/runner/.bash_profile
-#            echo 'export LDFLAGS="-L/usr/local/opt/node@16/lib $LDFLAGS"'  >> /Users/runner/.bash_profile
-#            echo 'export CPPFLAGS="-I/usr/local/opt/node@16/include $CPPFLAGS"' >> /Users/runner/.bash_profile
-#      - uses: actions/setup-python@v4
-#        with:
-#            python-version: '3.10'
-#      - name: Install dependencies
-#        run: |
-#          npm install -g pnpm
-#          npm install -g pkg
-#          cd Sub-Store/backend && pnpm i
-#      - name: Build
-#        run: |
-#          cd Sub-Store/backend
-#          pnpm run build
-#      - name: Bundle
-#        run: |
-#          cd Sub-Store/backend
-#          pnpm run bundle
-#      - name:  Package Release
-#        run: |
-#          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t macos-node16 --out-path ./sub-store-macos
-      # - name: Upload
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #       name: sub-store-macos
-      #       path: macos/
-#      - name: Package Release
-#        run: tar czf sub-store-macos.tar.gz ./sub-store-macos
-#      - name: Draft Release
-#        uses: softprops/action-gh-release@v1
-#        with:
-#            tag_name: ${{ steps.tag.outputs.release_tag }}
-#            files: sub-store-macos.tar.gz
-#            draft: false
-#  windows64_build:
-#    name: Windows  Build
-#    runs-on: windows-latest
-#    defaults:
-#      run:
-#        shell: msys2 {0}
-#    steps:
-#    - uses: actions/checkout@v3
-#    - uses: actions/setup-python@v4
-#      with:
-#        python-version: '3.10'
-#    - uses: actions/setup-node@v3
-#      with:
-#        node-version: '16'
-#    - uses: msys2/setup-msys2@v2
-#      with:
-#        update: true
-#        install: base-devel git mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-pcre2 patch sed
-#        msystem: MINGW64
-#        path-type: inherit
-#    - name: Checkout
-#      run: |
-#          git clone https://github.com/sub-store-org/Sub-Store.git
-#          "C:\Program Files\Git\usr\bin\sed.exe" -i 's#https://sub-store.vercel.app/#http://0.0.0.0:3000#g' 'Sub-Store/backend/src/restful/miscs.js'
-#          "C:\Program Files\Git\usr\bin\sed.exe" -i 's#src#./src#g' 'Sub-Store/backend/jsconfig.json'
-#    - id: tag
-#      name: Generate release tag
-#      run: |
-#          cd Sub-Store/backend
-#          SUBSTORE_RELEASE=`node --eval="process.stdout.write(require('./package.json').version)"`
-#          echo "release_tag=$SUBSTORE_RELEASE" >> $GITHUB_OUTPUT
-#    - name: Install dependencies
-#      run: |
-#          npm install -g pnpm
-#          npm install -g pkg
-#          cd Sub-Store/backend && pnpm i
-#    - name: Build
-#      run: |
-#          cd Sub-Store/backend
-#          dir
-#          pnpm run build
-#    - name: Bundle
-#      run: |
-#          cd Sub-Store/backend
-#          pnpm run bundle
-#    - name:  Package Release
-#      run: |
-#          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node16 --out-path  ./sub-store-windows
-#    - name: Package Release
-#      run: 7z a sub-store-windows.7z ./sub-store-windows
-#    - name: Draft Release
-#      uses: softprops/action-gh-release@v1
-#      with:
-#            tag_name: ${{ steps.tag.outputs.release_tag }}
-#            files: sub-store-windows.7z
-#            draft: false
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          files: sub-store-linux.tar.gz
+          draft: false
+
   frontend_build:
     name: Frontend Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-node@v4
+      - name: Checkout frontend
+        uses: actions/checkout@v3
         with:
-          node-version: '18'
-      - name: Checkout
+          repository: sub-store-org/Sub-Store-Front-End
+          path: Sub-Store-Front-End
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install global dependencies
         run: |
-          git clone https://github.com/sub-store-org/Sub-Store-Front-End.git
-          git clone https://github.com/sub-store-org/Sub-Store.git
-          sed -i 's#https://sub.store#http://0.0.0.0:3000#g' 'Sub-Store-Front-End/.env.production'
-      - id: frontend-tag
-        name: Generate frontend release tag
-        run: |
-          cd Sub-Store-Front-End
-          SUB_STORE_RELEASE=`node --eval="process.stdout.write(require('./package.json').version)"`
-          echo "frontend_release_tag=$SUB_STORE_RELEASE" >> $GITHUB_OUTPUT
-      - id: tag
-        name: Generate release tag
-        run: |
-          cd Sub-Store/backend
-          SUBSTORE_RELEASE=`node --eval="process.stdout.write(require('./package.json').version)"`
-          echo "release_tag=$SUBSTORE_RELEASE" >> $GITHUB_OUTPUT
-      - name: Install dependencies
-        run: |
-          cd Sub-Store-Front-End
           npm install -g pnpm
+
+      - name: Install frontend dependencies
+        run: |
+          cd Sub-Store-Front-End
           pnpm i
-      - name: build
+
+      - name: Generate frontend release tag
+        id: frontend-tag
+        run: |
+          cd Sub-Store-Front-End
+          SUB_STORE_RELEASE=$(node -e "console.log(require('./package.json').version)")
+          echo "frontend_release_tag=$SUB_STORE_RELEASE" >> $GITHUB_OUTPUT
+
+      - name: Build frontend
         run: |
           cd Sub-Store-Front-End
           pnpm build
-      - name: Package Release
+
+      - name: Package frontend release
         run: |
           cd Sub-Store-Front-End
-          zip -r dist-${{steps.frontend-tag.outputs.frontend_release_tag}}.zip dist
           tar czf dist.tar.gz dist
+
       - name: Draft Release
         uses: softprops/action-gh-release@v1
         with:
-              tag_name: ${{ steps.tag.outputs.release_tag }}
-              files: |
-                  Sub-Store-Front-End/dist-${{steps.frontend-tag.outputs.frontend_release_tag}}.zip
-                  Sub-Store-Front-End/dist.tar.gz
-              draft: false
-
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v3
-        with:
-          python-version: 3.9
-
-      - name: Install dependencies
-        run: |
-          sudo apt install wget -y
-          python -m pip install --upgrade pip
-          pip install httpx 
-
-      # - name: Update Telegraph
-      #   run: |
-      #     wget https://raw.githubusercontent.com/chenyk1219/Sub-Store-Local/main/telegram_update.py
-      #     python telegram_update.py ${{ secrets.TELEGRAPH_TOKEN }} ${{steps.frontend-tag.outputs.frontend_release_tag}} ${{ steps.tag.outputs.release_tag }}
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          files: Sub-Store-Front-End/dist.tar.gz
+          draft: false
