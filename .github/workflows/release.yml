@@ -50,7 +50,7 @@ jobs:
       - name: Build backend
         run: |
           cd Sub-Store/backend
-          sed -i '14s/^\s*const \$.*$/\/\/ eslint-disable no-unused-vars\n&/' src/main.js
+          sed -i '14d' src/main.js
           pnpm run build
 
       - name: Bundle backend
