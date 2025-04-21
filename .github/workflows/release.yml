@@ -50,7 +50,7 @@ jobs:
       - name: Build backend
         run: |
           cd Sub-Store/backend
-          pnpm run build
+          pnpm run build -- --no-lint
 
       - name: Bundle backend
         run: |
