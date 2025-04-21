@@ -38,7 +38,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           cd Sub-Store/backend
-          pnpm i
+          pnpm i --no-frozen-lockfile
 
       - name: Generate release tag
         id: tag
