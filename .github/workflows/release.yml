@@ -50,8 +50,7 @@ jobs:
       - name: Build backend
         run: |
           cd Sub-Store/backend
-          # pnpm run build -- --no-lint
-          NO_LINT=true pnpm run build
+          sed -i '/lint/d' gulpfile.babel.js && pnpm run build
 
       - name: Bundle backend
         run: |
