@@ -50,6 +50,7 @@ jobs:
       - name: Build backend
         run: |
           cd Sub-Store/backend
+          sed -i '2s/^/\/\/ eslint-disable-next-line no-unused-vars\n/' src/core/proxy-utils/producers/shadowrocket.js
           sed -i '14d' src/main.js
           pnpm run build
 
