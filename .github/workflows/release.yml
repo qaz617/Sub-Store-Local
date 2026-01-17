@@ -1,4 +1,4 @@
-name: Build and Release Sub-Store
+name: Build Sub-Store Cross-Platform
 
 on:
   workflow_dispatch:
@@ -9,17 +9,17 @@ permissions:
   contents: write
 
 jobs:
-  linux_build:
-    name: Linux Build
+  build_and_release:
+    name: Build & Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           repository: sub-store-org/Sub-Store
           path: Sub-Store
 
-      - name: Set up Node.js
+      - name: Set up Node.js 18
         uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -31,47 +31,77 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install global dependencies
+      - name: Install Dependencies
         run: |
           corepack enable
           npm install -g pkg
-
-      - name: Install backend dependencies
-        run: |
+          
           cd Sub-Store/backend
           pnpm i --no-frozen-lockfile
 
-      - name: Generate release tag
+      - name: Generate Release Tag
         id: tag
         run: |
           cd Sub-Store/backend
-          ver=$(node -e "console.log(require('./package.json').version)")
+          ver=$(node -p "require('./package.json').version")
           date=$(date +'%Y%m%d')
           echo "release_tag=${ver}-${date}" >> $GITHUB_OUTPUT
 
-      - name: Build backend
+      - name: Apply Custom Patches
         run: |
           cd Sub-Store/backend
           echo '{"root": true, "ignorePatterns": ["**/*"]}' > .eslintrc.json
-          pnpm run build
+          node -e "
+            const fs = require('fs');
+            const path = 'src/restful/miscs.js';
+            if (fs.existsSync(path)) {
+              let content = fs.readFileSync(path, 'utf8');
+              content = content.replace('https://sub-store.vercel.app/', 'http://0.0.0.0:3000');
+              fs.writeFileSync(path, content);
+              console.log('✅ Successfully patched miscs.js');
+            } else {
+              console.log('⚠️ Warning: miscs.js not found');
+            }
+          "
 
-      - name: Bundle backend
+      - name: Build & Bundle
         run: |
           cd Sub-Store/backend
+          pnpm run build
           pnpm bundle:esbuild
 
-      - name: Package backend for Linux
+      - name: Cross-Compile with pkg
         run: |
-          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node18 --out-path ./sub-store-linux
+          cd Sub-Store/backend
+          mkdir -p bin_output
+          pkg dist/sub-store.bundle.js \
+            -t node18-linux-arm64,node18-macos-arm64,node18-win-x64 \
+            --out-path bin_output
 
-      - name: Compress backend package
-        run: tar czf sub-store-linux.tar.gz ./sub-store-linux
+      - name: Rename and Compress
+        run: |
+          cd Sub-Store/backend/bin_output
+          mkdir -p ../release_files
+          if [ -f "sub-store.bundle-linux-arm64" ]; then
+            mv sub-store.bundle-linux-arm64 sub-store-linux-arm64
+            tar -czf ../release_files/sub-store-linux-arm64.tar.gz sub-store-linux-arm64
+          fi
+
+          if [ -f "sub-store.bundle-macos-arm64" ]; then
+            mv sub-store.bundle-macos-arm64 sub-store-macos-arm64
+            tar -czf ../release_files/sub-store-macos-arm64.tar.gz sub-store-macos-arm64
+          fi
+
+          if [ -f "sub-store.bundle-win-x64.exe" ]; then
+            mv sub-store.bundle-win-x64.exe sub-store-windows-x64.exe
+            zip ../release_files/sub-store-windows-x64.zip sub-store-windows-x64.exe
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           name: Sub-Store ${{ steps.tag.outputs.release_tag }}
-          files: sub-store-linux.tar.gz
+          files: Sub-Store/backend/release_files/*
           draft: false
           make_latest: true
