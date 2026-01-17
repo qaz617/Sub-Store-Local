@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -52,6 +52,7 @@ jobs:
           cd Sub-Store/backend
           echo '{"root": true, "ignorePatterns": ["**/*"]}' > .eslintrc.json
           pnpm run build
+
       - name: Bundle backend
         run: |
           cd Sub-Store/backend
@@ -59,7 +60,8 @@ jobs:
 
       - name: Package backend for Linux
         run: |
-          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node20 --out-path ./sub-store-linux
+          pkg ./Sub-Store/backend/dist/sub-store.bundle.js -t linux-node18 --out-path ./sub-store-linux
+
       - name: Compress backend package
         run: tar czf sub-store-linux.tar.gz ./sub-store-linux
 
