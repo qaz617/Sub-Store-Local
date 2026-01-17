@@ -23,6 +23,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'pnpm'
+          cache-dependency-path: Sub-Store/backend/pnpm-lock.yaml
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -31,7 +33,7 @@ jobs:
 
       - name: Install global dependencies
         run: |
-          npm install -g pnpm
+          corepack enable
           npm install -g pkg
 
       - name: Install backend dependencies
