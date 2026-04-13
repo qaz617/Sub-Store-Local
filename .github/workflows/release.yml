@@ -72,8 +72,7 @@ jobs:
       - name: Build & Bundle
         run: |
           cd Sub-Store/backend
-          pnpm run build
-          pnpm bundle:esbuild
+          pnpm run bundle:esbuild
 
       - name: Cross-Compile with pkg
         run: |
