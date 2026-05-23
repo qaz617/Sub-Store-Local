@@ -44,8 +44,9 @@ jobs:
         run: |
           npm install -g pkg
           cd Sub-Store/backend
+          echo "Current Directory: $(pwd)"
+          echo "Contents of package.json:"
           cat package.json  
-          jsonlint package.json || echo "Invalid package.json"
           pnpm install --no-frozen-lockfile
 
       - name: Generate Release Tag
