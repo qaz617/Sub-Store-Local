@@ -25,7 +25,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 11.0.9
+          version: 11
           run_install: false
 
       - name: Set up Node.js 22
@@ -42,12 +42,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install -g pkg
           cd Sub-Store/backend
           echo "Current Directory: $(pwd)"
           echo "Contents of package.json:"
           cat package.json  
-          # Switched to frozen-lockfile for deterministic CI builds
           pnpm install --frozen-lockfile
 
       - name: Generate Release Tag
@@ -82,44 +80,33 @@ jobs:
           cd Sub-Store/backend
           pnpm run bundle:esbuild
 
-      - name: Cross-Compile with pkg
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cross-Compile with Bun
         run: |
           cd Sub-Store/backend
           mkdir -p bin_output
           
-          # Added x64 targets for Linux and macOS
-          pkg dist/sub-store.bundle.js \
-            -t node18-linux-arm64,node18-linux-x64,node18-macos-arm64,node18-macos-x64,node18-win-x64 \
-            --out-path bin_output
+          bun build dist/sub-store.bundle.js --compile --target=bun-linux-arm64 --outfile=bin_output/sub-store-linux-arm64
+          bun build dist/sub-store.bundle.js --compile --target=bun-linux-x64 --outfile=bin_output/sub-store-linux-x64
+          bun build dist/sub-store.bundle.js --compile --target=bun-darwin-arm64 --outfile=bin_output/sub-store-macos-arm64
+          bun build dist/sub-store.bundle.js --compile --target=bun-darwin-x64 --outfile=bin_output/sub-store-macos-x64
+          bun build dist/sub-store.bundle.js --compile --target=bun-windows-x64 --outfile=bin_output/sub-store-windows-x64.exe
 
-      - name: Rename and Compress
+      - name: Compress Release Files
         run: |
           cd Sub-Store/backend/bin_output
           mkdir -p ../release_files
 
-          # Helper function to dry up the compression logic
-          compress_bin() {
-            local src_file=$1
-            local target_name=$2
-            local ext=$3
-            
-            if [ -f "$src_file" ]; then
-              mv "$src_file" "$target_name"
-              if [ "$ext" = "tar.gz" ]; then
-                tar -czf "../release_files/${target_name}.tar.gz" "$target_name"
-              elif [ "$ext" = "zip" ]; then
-                zip "../release_files/${target_name}.zip" "$target_name"
-              fi
-            fi
-          }
-
-          compress_bin "sub-store.bundle-linux-arm64" "sub-store-linux-arm64" "tar.gz"
-          compress_bin "sub-store.bundle-linux-x64" "sub-store-linux-x64" "tar.gz"
-          compress_bin "sub-store.bundle-macos-arm64" "sub-store-macos-arm64" "tar.gz"
-          compress_bin "sub-store.bundle-macos-x64" "sub-store-macos-x64" "tar.gz"
+          tar -czf ../release_files/sub-store-linux-arm64.tar.gz sub-store-linux-arm64
+          tar -czf ../release_files/sub-store-linux-x64.tar.gz sub-store-linux-x64
+          tar -czf ../release_files/sub-store-macos-arm64.tar.gz sub-store-macos-arm64
+          tar -czf ../release_files/sub-store-macos-x64.tar.gz sub-store-macos-x64
           
-          if [ -f "sub-store.bundle-win-x64.exe" ]; then
-            mv sub-store.bundle-win-x64.exe sub-store-windows-x64.exe
+          if [ -f "sub-store-windows-x64.exe" ]; then
             zip ../release_files/sub-store-windows-x64.zip sub-store-windows-x64.exe
           fi
 
