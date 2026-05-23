@@ -43,9 +43,10 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install -g pkg
-
           cd Sub-Store/backend
-          pnpm i --no-frozen-lockfile
+          cat package.json  
+          jsonlint package.json || echo "Invalid package.json"
+          pnpm install --no-frozen-lockfile
 
       - name: Generate Release Tag
         id: tag
