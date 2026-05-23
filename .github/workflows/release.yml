@@ -47,7 +47,8 @@ jobs:
           echo "Current Directory: $(pwd)"
           echo "Contents of package.json:"
           cat package.json  
-          pnpm install --no-frozen-lockfile
+          # Switched to frozen-lockfile for deterministic CI builds
+          pnpm install --frozen-lockfile
 
       - name: Generate Release Tag
         id: tag
@@ -85,9 +86,10 @@ jobs:
         run: |
           cd Sub-Store/backend
           mkdir -p bin_output
-
+          
+          # Added x64 targets for Linux and macOS
           pkg dist/sub-store.bundle.js \
-            -t node18-linux-arm64,node18-macos-arm64,node18-win-x64 \
+            -t node18-linux-arm64,node18-linux-x64,node18-macos-arm64,node18-macos-x64,node18-win-x64 \
             --out-path bin_output
 
       - name: Rename and Compress
@@ -95,16 +97,27 @@ jobs:
           cd Sub-Store/backend/bin_output
           mkdir -p ../release_files
 
-          if [ -f "sub-store.bundle-linux-arm64" ]; then
-            mv sub-store.bundle-linux-arm64 sub-store-linux-arm64
-            tar -czf ../release_files/sub-store-linux-arm64.tar.gz sub-store-linux-arm64
-          fi
+          # Helper function to dry up the compression logic
+          compress_bin() {
+            local src_file=$1
+            local target_name=$2
+            local ext=$3
+            
+            if [ -f "$src_file" ]; then
+              mv "$src_file" "$target_name"
+              if [ "$ext" = "tar.gz" ]; then
+                tar -czf "../release_files/${target_name}.tar.gz" "$target_name"
+              elif [ "$ext" = "zip" ]; then
+                zip "../release_files/${target_name}.zip" "$target_name"
+              fi
+            fi
+          }
 
-          if [ -f "sub-store.bundle-macos-arm64" ]; then
-            mv sub-store.bundle-macos-arm64 sub-store-macos-arm64
-            tar -czf ../release_files/sub-store-macos-arm64.tar.gz sub-store-macos-arm64
-          fi
-
+          compress_bin "sub-store.bundle-linux-arm64" "sub-store-linux-arm64" "tar.gz"
+          compress_bin "sub-store.bundle-linux-x64" "sub-store-linux-x64" "tar.gz"
+          compress_bin "sub-store.bundle-macos-arm64" "sub-store-macos-arm64" "tar.gz"
+          compress_bin "sub-store.bundle-macos-x64" "sub-store-macos-x64" "tar.gz"
+          
           if [ -f "sub-store.bundle-win-x64.exe" ]; then
             mv sub-store.bundle-win-x64.exe sub-store-windows-x64.exe
             zip ../release_files/sub-store-windows-x64.zip sub-store-windows-x64.exe
