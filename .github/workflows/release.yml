@@ -17,26 +17,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: sub-store-org/Sub-Store
           path: Sub-Store
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
           run_install: false
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'pnpm'
           cache-dependency-path: Sub-Store/backend/pnpm-lock.yaml
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.10'
 
@@ -45,7 +45,7 @@ jobs:
           cd Sub-Store/backend
           echo "Current Directory: $(pwd)"
           echo "Contents of package.json:"
-          cat package.json  
+          cat package.json
           pnpm install --frozen-lockfile
 
       - name: Generate Release Tag
@@ -69,9 +69,9 @@ jobs:
               let content = fs.readFileSync(path, 'utf8');
               content = content.replace('https://sub-store.vercel.app/', 'http://0.0.0.0:3000');
               fs.writeFileSync(path, content);
-              console.log('✅ Successfully patched miscs.js');
+              console.log('Successfully patched miscs.js');
             } else {
-              console.log('⚠️ Warning: miscs.js not found');
+              console.log('Warning: miscs.js not found');
             }
           "
 
@@ -89,7 +89,7 @@ jobs:
         run: |
           cd Sub-Store/backend
           mkdir -p bin_output
-          
+
           bun build dist/sub-store.bundle.js --compile --target=bun-linux-arm64 --outfile=bin_output/sub-store-linux-arm64
           bun build dist/sub-store.bundle.js --compile --target=bun-linux-x64 --outfile=bin_output/sub-store-linux-x64
           bun build dist/sub-store.bundle.js --compile --target=bun-darwin-arm64 --outfile=bin_output/sub-store-macos-arm64
@@ -105,13 +105,13 @@ jobs:
           tar -czf ../release_files/sub-store-linux-x64.tar.gz sub-store-linux-x64
           tar -czf ../release_files/sub-store-macos-arm64.tar.gz sub-store-macos-arm64
           tar -czf ../release_files/sub-store-macos-x64.tar.gz sub-store-macos-x64
-          
+
           if [ -f "sub-store-windows-x64.exe" ]; then
             zip ../release_files/sub-store-windows-x64.zip sub-store-windows-x64.exe
           fi
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           name: Sub-Store ${{ steps.tag.outputs.release_tag }}
